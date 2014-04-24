@@ -156,9 +156,10 @@ class Passphrase(Frame, Switch):
     self.grid()
       
   def makeInstructions(self):
-    instructions = "Instructions"
+    instructions = "Press a numbered button to enter a dice roll\n"
+    instructions += "Click on a cell to edit entered rolls"
     label = Label(self, text = instructions)
-    label.grid(row = 0, column = 0, columnspan = 8)
+    label.grid(row = 0, column = 0, columnspan = DICE + 1)
   
   def makePress(self, number):
     return lambda: self.switch.set(number)
