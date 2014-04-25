@@ -9,10 +9,26 @@ from json import load
 # empty is a string of spaces to make the width of the labels good
 
 EMPTY = '                   '
-DICE = 6    #  There are 6 dice
-DIE = 6     #  there are 6 spots on a die
-WORDS = 6   #  We are generating 6 words
+DICE = 6          #  There are 6 dice
+DIE = 6           #  there are 6 spots on a die
+WORDS = 6         #  We are generating 6 words
+CAESAR = 13       #  ROT13 constant
+ALPHABET = 26     #  Alphabet size
 
+
+def fold(base, c):
+  return base + (((c-base)+CAESAR) % ALPHABET)
+  
+def caesar(c):
+  print c
+  o = ord(c)
+  if o < ord('a'):
+    result = fold(ord('A'), o)
+  else:
+    result = fold(ord('a'), o)
+  
+  return chr(result)
+  
 #  The class Connect holds a die value and connects it to the corresponding label
 
 class Connect(Label):
@@ -72,6 +88,10 @@ class Switch():
   def clear(self):
     self.iterateDice(lambda item: item.clear())
     self.iterateWords(lambda label: label.config(text = EMPTY))
+    
+    for index in range(len(self.resultWords)):
+      self.resultWords[index] = ''
+      
     self.rowIndex = 0
     self.columnIndex = 0
     self.setPick()
@@ -96,11 +116,11 @@ class Switch():
   def set(self, value):
     if self.inRange():
       self.getConnect().set(value)
+      self.setWord()
       
     self.columnIndex += 1
     
     if self.columnIndex >= DICE:
-      self.setWord()
       self.rowIndex += 1
       self.columnIndex = 0
       
@@ -124,15 +144,19 @@ class Switch():
           result += multiply * row[index].value
           multiply *= DIE
           
-        word = text=self.wordList[result]
+        word = self.wordList[result]
         self.resultWords[self.rowIndex] = word
         self.wordLabels[self.rowIndex].config(text = word)
 
   def join(self):
     return (' '.join(self.resultWords)).strip()
     
-  
-#  Passphrase is the UI class
+  def obscure(self):
+    result = map((lambda word: map (caesar, word)), self.resultWords)
+    print result
+    return (' '.join(map((lambda l: ''.join(l)), result))).strip()
+      
+#  Passphrase is the UI class, it also initializes the Switch class
             
 class Passphrase(Frame, Switch):
   def __init__(self, parent, switch):
@@ -149,41 +173,48 @@ class Passphrase(Frame, Switch):
     self.parent.title("Create Passphrase")
     self.makeInstructions()
     self.makeKeys()
-    self.makeDice()
-    self.makeWords()
+    diceContainer = Frame(self)
+    self.makeDice(diceContainer)
+    self.makeWords(diceContainer)
+    diceContainer.grid(row = 2, column = 0)
     self.makeButtons()
     
     self.grid()
       
   def makeInstructions(self):
-    instructions = "Press a numbered button to enter a dice roll\n"
-    instructions += "Click on a cell to edit entered rolls"
-    label = Label(self, text = instructions)
-    label.grid(row = 0, column = 0, columnspan = DICE + 1)
+    instructions = "Press a numbered button to enter a dice roll. "
+    instructions += "When the row is full the word will appear.\n"
+    instructions += "Click on a cell to edit entered rolls\n"
+    instructions += "Text copied to clipboard may disappear when the program exits."
+    label = Label(self, text = instructions, wraplength=300)
+    label.grid(row = 0, column = 0)
   
   def makePress(self, number):
     return lambda: self.switch.set(number)
     
   def makeKeys(self):
+    keyContainer = Frame(self)
     for number in range (0, DICE):
-      button = Button(self, text = str(number+1), command = self.makePress(number))
+      button = Button(keyContainer, text = str(number+1), command = self.makePress(number))
       button.grid(row = 1,  column=number)
+    
+    keyContainer.grid(row = 1, column = 0)
     
   def makeClick(self, rowIndex, columnIndex):
     return lambda event: self.switch.changePick(rowIndex, columnIndex)
     
-  def makeDice(self):
+  def makeDice(self, container):
     for row in range (0, WORDS):
       for column in range (0, DICE):
-        label = Label(self, text = ' ', borderwidth = 1, relief = 'solid')
-        label.grid(row = row+2, column = column)
+        label = Label(container, text = ' ', borderwidth = 1, relief = 'solid')
+        label.grid(row = row, column = column)
         label.bind("<Button-1>", self.makeClick(row, column))
         self.switch.add(row, column, Connect(label))
   
-  def makeWords(self):
+  def makeWords(self, container):
     for number in range (0, WORDS):
-      label = Label(self, text=EMPTY, borderwidth=1, relief='solid')
-      label.grid(row = number+2,  column = DICE)
+      label = Label(container, text=EMPTY, borderwidth=1, relief='solid')
+      label.grid(row = number,  column = DICE)
       self.switch.wordLabels.append(label)
       self.switch.resultWords.append('')
         
@@ -192,14 +223,22 @@ class Passphrase(Frame, Switch):
     self.parent.clipboard_clear()
     self.parent.clipboard_append(string)
 
+  def copyObscure(self):
+    string = self.switch.obscure()
+    self.parent.clipboard_clear()
+    self.parent.clipboard_append(string)
+
   def makeButtons(self):
-    copy = Button(self, text = 'copy', command=self.copy)
-    copy.grid(row = WORDS+2,  column= 0, columnspan = DICE/2, rowspan = 2)
-    copy = Button(self, text = 'clear', command = self.switch.clear)
-    copy.grid(row = WORDS+2,  column= DICE/2, columnspan = DICE/2, rowspan = 2)
-    leave = Button(self, text = 'exit', command = exit)
-    leave.grid(row = WORDS+2,  column= DICE, columnspan = 1, rowspan = 2)
-  
+    container = Frame(self)
+    copy = Button(container, text = 'copy\nplain', command=self.copy)
+    copy.grid(row = 0, column = 0, rowspan = 2)
+    copy = Button(container, text = 'copy\nobscure', command=self.copyObscure)
+    copy.grid(row = 0, column = 1, rowspan = 2)
+    copy = Button(container, text = 'clear', command = self.switch.clear)
+    copy.grid(row = 0, column = 2, rowspan = 2)
+    leave = Button(container, text = 'exit', command = exit)
+    leave.grid(row = 0, column = 3, rowspan = 2)
+    container.grid(row = 3, column = 0)
 
 def main():
   
