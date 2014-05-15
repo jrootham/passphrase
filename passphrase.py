@@ -173,22 +173,34 @@ class Passphrase(Frame, Switch):
     self.parent.title("Create Passphrase")
     self.makeInstructions()
     self.makeKeys()
+    self.makeKeyboard()
     diceContainer = Frame(self)
     self.makeDice(diceContainer)
     self.makeWords(diceContainer)
     diceContainer.grid(row = 2, column = 0)
     self.makeButtons()
     
+
     self.grid()
       
   def makeInstructions(self):
-    instructions = "Press a numbered button to enter a dice roll. "
+    instructions = "Press a numbered button or enter 1-6 to enter a dice roll. "
     instructions += "When the row is full the word will appear.\n"
     instructions += "Click on a cell to edit entered rolls\n"
     instructions += "Text copied to clipboard may disappear when the program exits."
     label = Label(self, text = instructions, wraplength=300)
     label.grid(row = 0, column = 0)
   
+  def makeKeyboard(self):
+    keyset = frozenset(["1", "2", "3", "4", "5", "6"])
+    
+    def key(event):
+      if event.char in keyset:
+        self.switch.set(ord(event.char) - ord("1"))
+        
+    self.bind("<Key>", key)
+    self.focus_set()
+
   def makePress(self, number):
     return lambda: self.switch.set(number)
     
@@ -244,7 +256,7 @@ def main():
   
   root = Tk()
   switch = Switch()
-  app = Passphrase(root, switch)
+  Passphrase(root, switch)
   switch.setPick()
   root.mainloop()  
 
